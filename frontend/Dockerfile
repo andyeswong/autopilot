@@ -4,7 +4,6 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Vite bakes these env vars into the bundle at build time.
-# Railway passes service env vars as build args when using Dockerfiles.
 ARG VITE_API_URL=http://localhost:3000
 ARG VITE_VNC_URL=http://localhost:6080
 ENV VITE_API_URL=$VITE_API_URL
@@ -16,12 +15,15 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# ---- Serve Stage (nginx) ----
-FROM nginx:alpine
+# ---- Serve Stage ----
+FROM node:20-alpine
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN npm install -g serve
 
-EXPOSE 80
+COPY --from=builder /app/dist /app/dist
+WORKDIR /app
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3000
+
+# 'serve' reads the PORT env var automatically via -l flag; Railway sets PORT at runtime
+CMD ["sh", "-c", "serve dist -l ${PORT:-3000} --single"]
