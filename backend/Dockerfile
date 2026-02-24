@@ -1,15 +1,24 @@
-FROM node:20-alpine AS dev
+# ---- Build Stage ----
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install only Node dependencies for your backend
 COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy backend application
 COPY . .
+RUN npm run build
+
+# ---- Production Stage ----
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps --omit=dev
+
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-# Updated CMD to only start the backend server
-CMD npm run start:dev
+CMD ["node", "dist/interfaces/api/main"]
